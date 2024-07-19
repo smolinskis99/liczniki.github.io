@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Prognoza Zużycia Wody</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        th, td {
+            padding: 8px;
+            text-align: center;
+        }
+        tr.highlight {
+            background-color: yellow;
+        }
+    </style>
+</head>
+<body>
+    <h1>Prognoza Zużycia Wody</h1>
+    <form id="form">
+        <label for="start_date">Data początkowa:</label>
+        <input type="date" id="start_date" required><br><br>
+        <label for="end_date">Data końcowa:</label>
+        <input type="date" id="end_date" required><br><br>
+        
+        <h2>Liczniki 1</h2>
+        <label for="start_reading1">Stan licznika 1 na początku:</label>
+        <input type="number" id="start_reading1" step="1" required><br><br>
+        <label for="end_reading1">Stan licznika 1 na końcu:</label>
+        <input type="number" id="end_reading1" step="1" required><br><br>
+        
+        <h2>Liczniki 2</h2>
+        <label for="start_reading2">Stan licznika 2 na początku:</label>
+        <input type="number" id="start_reading2" step="1" required><br><br>
+        <label for="end_reading2">Stan licznika 2 na końcu:</label>
+        <input type="number" id="end_reading2" step="1" required><br><br>
+        
+        <h2>Liczniki 3</h2>
+        <label for="start_reading3">Stan licznika 3 na początku:</label>
+        <input type="number" id="start_reading3" step="1" required><br><br>
+        <label for="end_reading3">Stan licznika 3 na końcu:</label>
+        <input type="number" id="end_reading3" step="1" required><br><br>
+        
+        <input type="submit" value="Generuj">
+    </form>
+    <div id="results"></div>
+
+    <script>
+        document.getElementById('form').addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const startDate = new Date(document.getElementById('start_date').value);
+            const endDate = new Date(document.getElementById('end_date').value);
+
+            // Reading inputs for all counters
+            const startReading1 = parseInt(document.getElementById('start_reading1').value, 10);
+            const endReading1 = parseInt(document.getElementById('end_reading1').value, 10);
+            const startReading2 = parseInt(document.getElementById('start_reading2').value, 10);
+            const endReading2 = parseInt(document.getElementById('end_reading2').value, 10);
+            const startReading3 = parseInt(document.getElementById('start_reading3').value, 10);
+            const endReading3 = parseInt(document.getElementById('end_reading3').value, 10);
+
+            const numDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+            const totalUsage1 = endReading1 - startReading1;
+            const totalUsage2 = endReading2 - startReading2;
+            const totalUsage3 = endReading3 - startReading3;
+
+            let readings1 = [startReading1];
+            let readings2 = [startReading2];
+            let readings3 = [startReading3];
+            let dailyUsages = [];
+            let dailyUsages2 = [];
+            let currentReading1 = startReading1;
+            let currentReading2 = startReading2;
+            let currentReading3 = startReading3;
+            let remainingUsage1 = totalUsage1;
+
+            const totalUsageSpan1 = endReading1 - startReading1;
+
+            for (let i = 0; i < numDays - 1; i++) {
+                const date = new Date(startDate);
+                date.setDate(startDate.getDate() + i);
+
+                let dailyUsage1;
+                if (date.getDay() === 6) {  // Saturday
+                    dailyUsage1 = Math.round((remainingUsage1 / (numDays - i)) * (1 + Math.random() * 0.12));  // Increase by up to 12% on Saturdays
+                } else {
+                    dailyUsage1 = Math.round((remainingUsage1 / (numDays - i)) * (1 + Math.random() * 0.06 - 0.03));  // Random variation within +/-3%
+                }
+
+                dailyUsages.push(dailyUsage1);
+                currentReading1 += dailyUsage1;
+                readings1.push(currentReading1);
+                remainingUsage1 -= dailyUsage1;
+
+                let percentageIncrease = dailyUsage1 / totalUsageSpan1;
+
+                let dailyUsage2 = Math.round(totalUsage2 * percentageIncrease);
+                let dailyUsage3 = Math.round(totalUsage3 * percentageIncrease);
+
+                dailyUsages2.push(dailyUsage2);
+                currentReading2 += dailyUsage2;
+                currentReading3 += dailyUsage3;
+
+                readings2.push(currentReading2);
+                readings3.push(currentReading3);
+            }
+
+            // Adjust the last day's usage so the final reading matches exactly the endReading
+            const lastDailyUsage1 = Math.round(remainingUsage1);
+            readings1.push(endReading1);
+            dailyUsages.push(lastDailyUsage1);
+
+            // Adjust the second and third counters for the final day
+            const percentageIncrease = lastDailyUsage1 / totalUsageSpan1;
+            const lastDailyUsage2 = Math.round(totalUsage2 * percentageIncrease);
+            const lastDailyUsage3 = Math.round(totalUsage3 * percentageIncrease);
+
+            dailyUsages2.push(lastDailyUsage2);
+            readings2.push(currentReading2 + lastDailyUsage2);
+            readings3.push(currentReading3 + lastDailyUsage3);
+
+            displayResults(startDate, readings1, readings2, readings3, dailyUsages, dailyUsages2);
+        });
+
+        function displayResults(startDate, readings1, readings2, readings3, dailyUsages, dailyUsages2) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<h2>Wyniki:</h2>';
+
+            let table = '<table><tr><th>Data</th><th>Stan licznika 1</th><th>Stan licznika 2</th><th>Dzienne zużycie licznika 2</th><th>Stan licznika 3</th></tr>';
+            for (let i = 0; i < readings1.length; i++) {
+                const date = new Date(startDate);
+                date.setDate(startDate.getDate() + i);
+                const dailyUsage2 = i > 0 ? dailyUsages2[i - 1] : 'N/A';
+                table += `<tr onclick="highlightRow(this)"><td>${date.toISOString().split('T')[0]}</td><td>${readings1[i]}</td><td>${readings2[i]}</td><td>${dailyUsage2}</td><td>${readings3[i]}</td></tr>`;
+            }
+            table += '</table>';
+
+            resultsDiv.innerHTML += table;
+        }
+
+        function highlightRow(row) {
+            // Remove highlight from all rows
+            const rows = document.querySelectorAll('tr');
+            rows.forEach(r => r.classList.remove('highlight'));
+
+            // Add highlight to the clicked row
+            row.classList.add('highlight');
+        }
+    </script>
+</body>
+</html>
